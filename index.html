@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mutual Aid Emergency Fund (M.A.E.F)</title>
+    <meta
+      name="maef-api-url"
+      content="/api/state"
+      data-note="Override via window.MAEF_API_URL if needed."
+    />
+    <link rel="preconnect" href="https://unpkg.com" />
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Inter", system-ui, -apple-system, sans-serif;
+        color: #102030;
+        background: #f5f7fb;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #f5f7fb;
+      }
+
+      .app {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 48px 24px 80px;
+      }
+
+      .hero {
+        background: linear-gradient(135deg, #1c3faa, #1a7f86);
+        color: white;
+        padding: 32px;
+        border-radius: 20px;
+        box-shadow: 0 20px 45px rgba(26, 56, 112, 0.25);
+        margin-bottom: 32px;
+      }
+
+      .eyebrow {
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        font-weight: 600;
+        font-size: 0.75rem;
+        margin: 0 0 12px;
+      }
+
+      .hero h1 {
+        margin: 0 0 12px;
+        font-size: 2.4rem;
+      }
+
+      .subtitle {
+        margin: 0;
+        max-width: 680px;
+        line-height: 1.6;
+      }
+
+      .panel {
+        background: white;
+        border-radius: 18px;
+        padding: 28px;
+        box-shadow: 0 14px 36px rgba(18, 32, 61, 0.08);
+        margin-bottom: 28px;
+      }
+
+      .panel-muted {
+        background: #eef3ff;
+      }
+
+      h2 {
+        margin-top: 0;
+        font-size: 1.5rem;
+      }
+
+      .grid {
+        display: grid;
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+
+      .grid.two {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      }
+
+      .grid.three {
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      }
+
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        font-size: 0.95rem;
+      }
+
+      .field.small {
+        max-width: 140px;
+      }
+
+      input,
+      select {
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid #ccd6f6;
+        font-size: 1rem;
+        background: white;
+      }
+
+      .member-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .member-card {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr auto;
+        align-items: center;
+        gap: 16px;
+        background: #f8f9ff;
+        border-radius: 16px;
+        padding: 16px;
+      }
+
+      .member-name {
+        font-size: 1.05rem;
+        font-weight: 600;
+        border: none;
+        background: transparent;
+        padding: 0;
+      }
+
+      .member-add {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: end;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: #f0f4ff;
+        color: #1c3faa;
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+
+      .status-pill.offline {
+        background: #fff1e6;
+        color: #8a4b1a;
+      }
+
+      .card {
+        background: #f3f5fb;
+        border-radius: 14px;
+        padding: 14px;
+      }
+
+      .card strong {
+        display: block;
+        font-size: 1.2rem;
+        margin-top: 6px;
+      }
+
+      .hint {
+        color: #5f6b85;
+        font-size: 0.85rem;
+        margin: 6px 0 0;
+      }
+
+      button {
+        background: #1c3faa;
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 10px 16px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      button.ghost {
+        background: transparent;
+        color: #1c3faa;
+        border: 1px solid #c5d2f2;
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .approval {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 16px;
+        align-items: stretch;
+      }
+
+      .value {
+        font-size: 2rem;
+        font-weight: 700;
+        margin: 8px 0;
+      }
+
+      .status {
+        border-radius: 16px;
+        padding: 16px;
+        font-weight: 600;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        justify-content: center;
+      }
+
+      .status.approved {
+        background: #e3f6ec;
+        color: #135d38;
+      }
+
+      .status.denied {
+        background: #ffe9e7;
+        color: #8f2e20;
+      }
+
+      ul {
+        margin: 0;
+        padding-left: 20px;
+        line-height: 1.6;
+      }
+
+      @media (max-width: 900px) {
+        .member-card {
+          grid-template-columns: 1fr;
+          align-items: stretch;
+        }
+
+        .approval {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script type="text/babel">
+      const { useMemo, useState } = React;
+
+      const DEFAULT_MEMBERS = [
+        { id: "m1", name: "Avery", units: 3 },
+        { id: "m2", name: "Jordan", units: 2 },
+        { id: "m3", name: "Riley", units: 1 }
+      ];
+
+      const formatCurrency = (value) =>
+        new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "USD"
+        }).format(value);
+
+      const clampNumber = (value, min, max) =>
+        Math.min(max, Math.max(min, value));
+
+      const getContributionTier = (units) => `$${units * 10} / month`;
+
+      const getLimits = ({
+        balance,
+        totalUnits,
+        memberUnits,
+        alpha,
+        beta,
+        gamma
+      }) => {
+        const personal =
+          totalUnits > 0 ? (memberUnits / totalUnits) * balance * alpha : 0;
+        const pool = beta * balance;
+        const minimumBalance = gamma * balance;
+        const floor = balance - minimumBalance;
+        const max = Math.min(personal, pool, floor);
+        return {
+          personal,
+          pool,
+          minimumBalance,
+          floor,
+          max
+        };
+      };
+
+      const findBindingConstraint = ({ personal, pool, floor }) => {
+        const min = Math.min(personal, pool, floor);
+        if (min === personal) {
+          return "Personal limit applied based on contribution weight.";
+        }
+        if (min === pool) {
+          return "Pool limit applied to protect liquidity.";
+        }
+        return "Floor limit applied to preserve the minimum balance.";
+      };
+
+      const STORAGE_KEY = "maefund-state-v1";
+      const DEFAULT_API_ENDPOINT = "/api/state";
+      const META_API = document.querySelector('meta[name="maef-api-url"]');
+      const API_ENDPOINT =
+        window.MAEF_API_URL ||
+        window.__MAEF_API_URL__ ||
+        META_API?.content ||
+        DEFAULT_API_ENDPOINT;
+
+      const loadStateFromLocal = () => {
+        try {
+          const raw = window.localStorage.getItem(STORAGE_KEY);
+          return raw ? JSON.parse(raw) : null;
+        } catch (error) {
+          console.warn("Unable to read saved state", error);
+          return null;
+        }
+      };
+
+      const saveStateToLocal = (state) => {
+        try {
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (error) {
+          console.warn("Unable to save state", error);
+        }
+      };
+
+      const App = () => {
+        const [backendStatus, setBackendStatus] = useState({
+          connected: false,
+          message: "Checking backend..."
+        });
+        const savedState = loadStateFromLocal();
+        const [balance, setBalance] = useState(12500);
+        const [alpha, setAlpha] = useState(2);
+        const [beta, setBeta] = useState(0.35);
+        const [gamma, setGamma] = useState(0.2);
+        const [members, setMembers] = useState(
+          savedState?.members?.length ? savedState.members : DEFAULT_MEMBERS
+        );
+        const [selectedMemberId, setSelectedMemberId] = useState(
+          savedState?.selectedMemberId ?? "m1"
+        );
+        const [requestAmount, setRequestAmount] = useState(
+          savedState?.requestAmount ?? 1200
+        );
+        const [newMemberName, setNewMemberName] = useState("");
+        const [newMemberUnits, setNewMemberUnits] = useState(1);
+
+        const totalUnits = useMemo(
+          () => members.reduce((sum, member) => sum + member.units, 0),
+          [members]
+        );
+
+        const selectedMember = members.find(
+          (member) => member.id === selectedMemberId
+        );
+
+        const limits = useMemo(() => {
+          if (!selectedMember) {
+            return {
+              personal: 0,
+              pool: 0,
+              minimumBalance: 0,
+              floor: 0,
+              max: 0
+            };
+          }
+          return getLimits({
+            balance,
+            totalUnits,
+            memberUnits: selectedMember.units,
+            alpha,
+            beta,
+            gamma
+          });
+        }, [balance, totalUnits, selectedMember, alpha, beta, gamma]);
+
+        const approvalStatus = requestAmount <= limits.max;
+        const bindingExplanation = findBindingConstraint(limits);
+
+        const updateMemberUnits = (id, units) => {
+          setMembers((prev) =>
+            prev.map((member) =>
+              member.id === id ? { ...member, units } : member
+            )
+          );
+        };
+
+        const updateMemberName = (id, name) => {
+          setMembers((prev) =>
+            prev.map((member) =>
+              member.id === id ? { ...member, name } : member
+            )
+          );
+        };
+
+        const removeMember = (id) => {
+          setMembers((prev) => prev.filter((member) => member.id !== id));
+          if (selectedMemberId === id && members.length > 1) {
+            const remaining = members.find((member) => member.id !== id);
+            setSelectedMemberId(remaining?.id ?? "");
+          }
+        };
+
+        const addMember = () => {
+          const trimmedName = newMemberName.trim();
+          if (!trimmedName) {
+            return;
+          }
+          const id = `m${Date.now()}`;
+          setMembers((prev) => [
+            ...prev,
+            { id, name: trimmedName, units: newMemberUnits }
+          ]);
+          setNewMemberName("");
+          setNewMemberUnits(1);
+          setSelectedMemberId(id);
+        };
+
+        React.useEffect(() => {
+          const hydrateFromSavedState = (state) => {
+            if (!state) {
+              return;
+            }
+            if (typeof state.balance === "number") {
+              setBalance(state.balance);
+            }
+            if (typeof state.alpha === "number") {
+              setAlpha(state.alpha);
+            }
+            if (typeof state.beta === "number") {
+              setBeta(state.beta);
+            }
+            if (typeof state.gamma === "number") {
+              setGamma(state.gamma);
+            }
+            if (Array.isArray(state.members) && state.members.length > 0) {
+              setMembers(state.members);
+            }
+            if (state.selectedMemberId) {
+              setSelectedMemberId(state.selectedMemberId);
+            }
+            if (typeof state.requestAmount === "number") {
+              setRequestAmount(state.requestAmount);
+            }
+          };
+
+          const loadFromBackend = async () => {
+            try {
+              const response = await fetch(API_ENDPOINT);
+              if (!response.ok) {
+                throw new Error("Backend unavailable");
+              }
+              const data = await response.json();
+              hydrateFromSavedState(data?.state);
+              setBackendStatus({
+                connected: true,
+                message: "Connected to backend database"
+              });
+            } catch (error) {
+              hydrateFromSavedState(savedState);
+              setBackendStatus({
+                connected: false,
+                message: "Backend unavailable — using browser storage only"
+              });
+            }
+          };
+
+          loadFromBackend();
+        }, []);
+
+        React.useEffect(() => {
+          const state = {
+            balance,
+            alpha,
+            beta,
+            gamma,
+            members,
+            selectedMemberId,
+            requestAmount
+          };
+
+          const persistState = async () => {
+            if (backendStatus.connected) {
+              try {
+                await fetch(API_ENDPOINT, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ state })
+                });
+                return;
+              } catch (error) {
+                setBackendStatus({
+                  connected: false,
+                  message: "Backend unavailable — using browser storage only"
+                });
+              }
+            }
+            saveStateToLocal(state);
+          };
+
+          persistState();
+        }, [
+          balance,
+          alpha,
+          beta,
+          gamma,
+          members,
+          selectedMemberId,
+          requestAmount,
+          backendStatus.connected
+        ]);
+
+        const resetAll = () => {
+          window.localStorage.removeItem(STORAGE_KEY);
+          if (backendStatus.connected) {
+            fetch(API_ENDPOINT, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ state: null })
+            }).catch(() => {
+              setBackendStatus({
+                connected: false,
+                message: "Backend unavailable — using browser storage only"
+              });
+            });
+          }
+          setBalance(12500);
+          setAlpha(2);
+          setBeta(0.35);
+          setGamma(0.2);
+          setMembers(DEFAULT_MEMBERS);
+          setSelectedMemberId("m1");
+          setRequestAmount(1200);
+          setNewMemberName("");
+          setNewMemberUnits(1);
+        };
+
+        return (
+          <div className="app">
+            <header className="hero">
+              <div>
+                <p className="eyebrow">Mutual Aid Emergency Fund</p>
+                <h1>M.A.E.F Withdrawal Transparency Simulator</h1>
+                <p className="subtitle">
+                  This mutual aid fund is not a loan, credit, or investment
+                  product. It exists to share emergency support with fairness,
+                  transparency, and liquidity protection.
+                </p>
+              </div>
+            </header>
+
+            <section className="panel">
+              <h2>Fund overview</h2>
+              <div className="grid three">
+                <label className="field">
+                  <span>Current fund balance (B)</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="100"
+                    value={balance}
+                    onChange={(event) =>
+                      setBalance(Math.max(0, Number(event.target.value)))
+                    }
+                  />
+                  <span className="hint">
+                    Displayed as {formatCurrency(balance)}.
+                  </span>
+                </label>
+                <div className="card">
+                  <span>Total units (Uₜ)</span>
+                  <strong>{totalUnits}</strong>
+                  <p className="hint">Sum of all member units.</p>
+                </div>
+                <div className="card">
+                  <span>Minimum balance (Bₘᵢₙ)</span>
+                  <strong>{formatCurrency(balance * gamma)}</strong>
+                  <p className="hint">Fund floor protection (γ × B).</p>
+                </div>
+              </div>
+              <div className="grid three">
+                <label className="field">
+                  <span>Personal multiplier (α)</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="3"
+                    step="0.1"
+                    value={alpha}
+                    onChange={(event) =>
+                      setAlpha(clampNumber(Number(event.target.value), 1, 3))
+                    }
+                  />
+                  <span className="hint">Suggested range 1.5 – 2.5.</span>
+                </label>
+                <label className="field">
+                  <span>Pool withdrawal fraction (β)</span>
+                  <input
+                    type="number"
+                    min="0.1"
+                    max="0.5"
+                    step="0.01"
+                    value={beta}
+                    onChange={(event) =>
+                      setBeta(clampNumber(Number(event.target.value), 0.1, 0.5))
+                    }
+                  />
+                  <span className="hint">Suggested range 0.25 – 0.40.</span>
+                </label>
+                <label className="field">
+                  <span>Floor fraction (γ)</span>
+                  <input
+                    type="number"
+                    min="0.1"
+                    max="0.3"
+                    step="0.01"
+                    value={gamma}
+                    onChange={(event) =>
+                      setGamma(clampNumber(Number(event.target.value), 0.1, 0.3))
+                    }
+                  />
+                  <span className="hint">Suggested range 0.15 – 0.25.</span>
+                </label>
+              </div>
+              <div className="actions">
+                <button className="ghost" type="button" onClick={resetAll}>
+                  Reset to defaults
+                </button>
+                <span
+                  className={`status-pill ${
+                    backendStatus.connected ? "" : "offline"
+                  }`}
+                >
+                  {backendStatus.message}
+                </span>
+              </div>
+            </section>
+
+            <section className="panel">
+              <h2>Member management</h2>
+              <div className="member-list">
+                {members.map((member) => {
+                  const memberLimits = getLimits({
+                    balance,
+                    totalUnits,
+                    memberUnits: member.units,
+                    alpha,
+                    beta,
+                    gamma
+                  });
+                  return (
+                    <div className="member-card" key={member.id}>
+                      <div>
+                        <input
+                          className="member-name"
+                          value={member.name}
+                          onChange={(event) =>
+                            updateMemberName(member.id, event.target.value)
+                          }
+                          aria-label="Member name"
+                        />
+                        <p className="hint">
+                          {getContributionTier(member.units)}
+                        </p>
+                      </div>
+                      <label className="field small">
+                        <span>Units (1–3)</span>
+                        <input
+                          type="number"
+                          min="1"
+                          max="3"
+                          step="1"
+                          value={member.units}
+                          onChange={(event) =>
+                            updateMemberUnits(
+                              member.id,
+                              clampNumber(Number(event.target.value), 1, 3)
+                            )
+                          }
+                        />
+                      </label>
+                      <div className="card">
+                        <span>Max withdrawal</span>
+                        <strong>{formatCurrency(memberLimits.max)}</strong>
+                        <p className="hint">Wₘₐₓ based on all constraints.</p>
+                      </div>
+                      <button
+                        className="ghost"
+                        type="button"
+                        onClick={() => removeMember(member.id)}
+                        disabled={members.length === 1}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="member-add">
+                <input
+                  type="text"
+                  placeholder="New member name"
+                  value={newMemberName}
+                  onChange={(event) => setNewMemberName(event.target.value)}
+                />
+                <label className="field small">
+                  <span>Units</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="3"
+                    step="1"
+                    value={newMemberUnits}
+                    onChange={(event) =>
+                      setNewMemberUnits(
+                        clampNumber(Number(event.target.value), 1, 3)
+                      )
+                    }
+                  />
+                </label>
+                <button type="button" onClick={addMember}>
+                  Add member
+                </button>
+              </div>
+            </section>
+
+            <section className="panel">
+              <h2>Withdrawal simulator</h2>
+              <div className="grid two">
+                <label className="field">
+                  <span>Select member</span>
+                  <select
+                    value={selectedMemberId}
+                    onChange={(event) => setSelectedMemberId(event.target.value)}
+                  >
+                    {members.map((member) => (
+                      <option key={member.id} value={member.id}>
+                        {member.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Requested withdrawal</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="50"
+                    value={requestAmount}
+                    onChange={(event) =>
+                      setRequestAmount(Math.max(0, Number(event.target.value)))
+                    }
+                  />
+                  <span className="hint">
+                    Currently {formatCurrency(requestAmount)}.
+                  </span>
+                </label>
+              </div>
+              <div className="grid three">
+                <div className="card">
+                  <span>Personal limit (W_personal)</span>
+                  <strong>{formatCurrency(limits.personal)}</strong>
+                  <p className="hint">
+                    (Uᵢ / Uₜ) × B × α = ({selectedMember?.units ?? 0} /{" "}
+                    {totalUnits}) × {formatCurrency(balance)} × {alpha}
+                  </p>
+                </div>
+                <div className="card">
+                  <span>Pool limit (W_pool)</span>
+                  <strong>{formatCurrency(limits.pool)}</strong>
+                  <p className="hint">
+                    β × B = {beta} × {formatCurrency(balance)}
+                  </p>
+                </div>
+                <div className="card">
+                  <span>Floor limit (W_floor)</span>
+                  <strong>{formatCurrency(limits.floor)}</strong>
+                  <p className="hint">
+                    B − (γ × B) = {formatCurrency(balance)} −{" "}
+                    {formatCurrency(limits.minimumBalance)}
+                  </p>
+                </div>
+              </div>
+              <div className="approval">
+                <div>
+                  <h3>Final maximum allowable withdrawal (Wₘₐₓ)</h3>
+                  <p className="value">{formatCurrency(limits.max)}</p>
+                  <p className="hint">
+                    Wₘₐₓ = min(W_personal, W_pool, W_floor)
+                  </p>
+                </div>
+                <div className={`status ${approvalStatus ? "approved" : "denied"}`}>
+                  <span>{approvalStatus ? "Approved" : "Denied"}</span>
+                  <p>{bindingExplanation}</p>
+                  <p className="hint">
+                    Requested amount is {approvalStatus ? "within" : "above"} the
+                    allowable maximum.
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section className="panel panel-muted">
+              <h2>Guiding principles</h2>
+              <ul>
+                <li>Participation is voluntary and grounded in mutual aid.</li>
+                <li>Members accept: “I may give more than I will ever take.”</li>
+                <li>Units represent contribution weight, not ownership.</li>
+                <li>
+                  The fund protects fairness, liquidity, and long-term survival
+                  through transparent limits.
+                </li>
+              </ul>
+            </section>
+          </div>
+        );
+      };
+
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(
+        <React.StrictMode>
+          <App />
+        </React.StrictMode>
+      );
+    </script>
+  </body>
+</html>
