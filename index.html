@@ -4,6 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mutual Aid Emergency Fund (M.A.E.F)</title>
+    <meta
+      name="maef-api-url"
+      content="/api/state"
+      data-note="Override via window.MAEF_API_URL if needed."
+    />
     <link rel="preconnect" href="https://unpkg.com" />
     <style>
       :root {
@@ -137,6 +142,30 @@
         flex-wrap: wrap;
         gap: 12px;
         align-items: end;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: #f0f4ff;
+        color: #1c3faa;
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+
+      .status-pill.offline {
+        background: #fff1e6;
+        color: #8a4b1a;
       }
 
       .card {
@@ -288,14 +317,52 @@
         return "Floor limit applied to preserve the minimum balance.";
       };
 
+      const STORAGE_KEY = "maefund-state-v1";
+      const DEFAULT_API_ENDPOINT = "/api/state";
+      const META_API = document.querySelector('meta[name="maef-api-url"]');
+      const API_ENDPOINT =
+        window.MAEF_API_URL ||
+        window.__MAEF_API_URL__ ||
+        META_API?.content ||
+        DEFAULT_API_ENDPOINT;
+
+      const loadStateFromLocal = () => {
+        try {
+          const raw = window.localStorage.getItem(STORAGE_KEY);
+          return raw ? JSON.parse(raw) : null;
+        } catch (error) {
+          console.warn("Unable to read saved state", error);
+          return null;
+        }
+      };
+
+      const saveStateToLocal = (state) => {
+        try {
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (error) {
+          console.warn("Unable to save state", error);
+        }
+      };
+
       const App = () => {
+        const [backendStatus, setBackendStatus] = useState({
+          connected: false,
+          message: "Checking backend..."
+        });
+        const savedState = loadStateFromLocal();
         const [balance, setBalance] = useState(12500);
         const [alpha, setAlpha] = useState(2);
         const [beta, setBeta] = useState(0.35);
         const [gamma, setGamma] = useState(0.2);
-        const [members, setMembers] = useState(DEFAULT_MEMBERS);
-        const [selectedMemberId, setSelectedMemberId] = useState("m1");
-        const [requestAmount, setRequestAmount] = useState(1200);
+        const [members, setMembers] = useState(
+          savedState?.members?.length ? savedState.members : DEFAULT_MEMBERS
+        );
+        const [selectedMemberId, setSelectedMemberId] = useState(
+          savedState?.selectedMemberId ?? "m1"
+        );
+        const [requestAmount, setRequestAmount] = useState(
+          savedState?.requestAmount ?? 1200
+        );
         const [newMemberName, setNewMemberName] = useState("");
         const [newMemberUnits, setNewMemberUnits] = useState(1);
 
@@ -368,6 +435,125 @@
           setNewMemberName("");
           setNewMemberUnits(1);
           setSelectedMemberId(id);
+        };
+
+        React.useEffect(() => {
+          const hydrateFromSavedState = (state) => {
+            if (!state) {
+              return;
+            }
+            if (typeof state.balance === "number") {
+              setBalance(state.balance);
+            }
+            if (typeof state.alpha === "number") {
+              setAlpha(state.alpha);
+            }
+            if (typeof state.beta === "number") {
+              setBeta(state.beta);
+            }
+            if (typeof state.gamma === "number") {
+              setGamma(state.gamma);
+            }
+            if (Array.isArray(state.members) && state.members.length > 0) {
+              setMembers(state.members);
+            }
+            if (state.selectedMemberId) {
+              setSelectedMemberId(state.selectedMemberId);
+            }
+            if (typeof state.requestAmount === "number") {
+              setRequestAmount(state.requestAmount);
+            }
+          };
+
+          const loadFromBackend = async () => {
+            try {
+              const response = await fetch(API_ENDPOINT);
+              if (!response.ok) {
+                throw new Error("Backend unavailable");
+              }
+              const data = await response.json();
+              hydrateFromSavedState(data?.state);
+              setBackendStatus({
+                connected: true,
+                message: "Connected to backend database"
+              });
+            } catch (error) {
+              hydrateFromSavedState(savedState);
+              setBackendStatus({
+                connected: false,
+                message: "Backend unavailable — using browser storage only"
+              });
+            }
+          };
+
+          loadFromBackend();
+        }, []);
+
+        React.useEffect(() => {
+          const state = {
+            balance,
+            alpha,
+            beta,
+            gamma,
+            members,
+            selectedMemberId,
+            requestAmount
+          };
+
+          const persistState = async () => {
+            if (backendStatus.connected) {
+              try {
+                await fetch(API_ENDPOINT, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ state })
+                });
+                return;
+              } catch (error) {
+                setBackendStatus({
+                  connected: false,
+                  message: "Backend unavailable — using browser storage only"
+                });
+              }
+            }
+            saveStateToLocal(state);
+          };
+
+          persistState();
+        }, [
+          balance,
+          alpha,
+          beta,
+          gamma,
+          members,
+          selectedMemberId,
+          requestAmount,
+          backendStatus.connected
+        ]);
+
+        const resetAll = () => {
+          window.localStorage.removeItem(STORAGE_KEY);
+          if (backendStatus.connected) {
+            fetch(API_ENDPOINT, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ state: null })
+            }).catch(() => {
+              setBackendStatus({
+                connected: false,
+                message: "Backend unavailable — using browser storage only"
+              });
+            });
+          }
+          setBalance(12500);
+          setAlpha(2);
+          setBeta(0.35);
+          setGamma(0.2);
+          setMembers(DEFAULT_MEMBERS);
+          setSelectedMemberId("m1");
+          setRequestAmount(1200);
+          setNewMemberName("");
+          setNewMemberUnits(1);
         };
 
         return (
@@ -456,6 +642,18 @@
                   />
                   <span className="hint">Suggested range 0.15 – 0.25.</span>
                 </label>
+              </div>
+              <div className="actions">
+                <button className="ghost" type="button" onClick={resetAll}>
+                  Reset to defaults
+                </button>
+                <span
+                  className={`status-pill ${
+                    backendStatus.connected ? "" : "offline"
+                  }`}
+                >
+                  {backendStatus.message}
+                </span>
               </div>
             </section>
 
